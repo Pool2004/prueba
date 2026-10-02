@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Registros - Sistema de Nutrición</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 35%, #f8fafc 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #1d4ed8;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        .table-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(29, 78, 216, 0.15);
+            margin-bottom: 30px;
+        }
+        table {
+            margin-bottom: 0;
+        }
+        th {
+            background: linear-gradient(135deg, #1d4ed8 0%, #153ea8 100%);
+            color: white;
+            border-radius: 8px;
+        }
+        .badge-peso-normal {
+            background-color: #4CAF50;
+        }
+        .badge-bajo {
+            background-color: #FFA500;
+        }
+        .badge-sobrepeso {
+            background-color: #FF6B6B;
+        }
+        .badge-obesidad {
+            background-color: #D32F2F;
+        }
+        .no-records {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(29, 78, 216, 0.1);
+            text-align: center;
+        }
+        .stat-card h3 {
+            color: #1d4ed8;
+            font-size: 2rem;
+            margin: 10px 0;
+        }
+        .stat-card p {
+            color: #6b7280;
+            margin: 0;
+        }
+        .btn-volver {
+            background: linear-gradient(135deg, #1d4ed8 0%, #153ea8 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .btn-volver:hover {
+            transform: translateY(-2px);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Panel de Registros</h1>
+            <p>Sistema de Nutrición Estudiantil</p>
+            <a href="index.html" class="btn-volver">← Volver al Formulario</a>
+        </div>
+
+        <div id="stats" class="stats"></div>
+
+        <div class="table-container">
+            <h3 style="color: #1d4ed8; margin-bottom: 20px;">Registros de Estudiantes</h3>
+            <div id="registros-container">
+                <div class="no-records">
+                    <p>Cargando registros...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cargar registros al iniciar la página
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarRegistros();
+        });
+
+        const cargarRegistros = () => {
+            fetch("../database/obtener_estudiantes.php")
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success && result.data.length > 0) {
+                        const estudiantes = result.data;
+                        mostrarRegistros(estudiantes);
+                        calcularEstadisticas(estudiantes);
+                    } else {
+                        document.getElementById("registros-container").innerHTML = `
+                            <div class="no-records">
+                                <p>📭 No hay registros aún. Ve al <a href="index.html" style="color: #1d4ed8;">formulario</a> para crear uno.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    document.getElementById("registros-container").innerHTML = `
+                        <div class="no-records">
+                            <p style="color: #D32F2F;">Error al cargar los registros. Verifica que PHP y la base de datos estén configurados correctamente.</p>
+                        </div>
+                    `;
+                });
+        };
+
+        const obtenerBadgeClase = (clasificacion) => {
+            switch(clasificacion) {
+                case 'Peso normal':
+                    return 'badge-peso-normal';
+                case 'Bajo peso':
+                    return 'badge-bajo';
+                case 'Sobrepeso':
+                    return 'badge-sobrepeso';
+                case 'Obesidad':
+                    return 'badge-obesidad';
+                default:
+                    return 'badge-secondary';
+            }
+        };
+
+        const mostrarRegistros = (estudiantes) => {
+            let html = `
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Peso (kg)</th>
+                            <th>Estatura (m)</th>
+                            <th>IMC</th>
+                            <th>Clasificación</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            estudiantes.forEach((est, index) => {
+                const badgeClase = obtenerBadgeClase(est.clasificacion);
+                const fecha = new Date(est.fecha_registro).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                html += `
+                    <tr>
+                        <td><strong>${index + 1}</strong></td>
+                        <td>${est.nombre}</td>
+                        <td>${parseFloat(est.peso).toFixed(1)}</td>
+                        <td>${parseFloat(est.estatura).toFixed(2)}</td>
+                        <td><strong>${parseFloat(est.imc).toFixed(2)}</strong></td>
+                        <td><span class="badge ${badgeClase}">${est.clasificacion}</span></td>
+                        <td><small>${fecha}</small></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById("registros-container").innerHTML = html;
+        };
+
+        const calcularEstadisticas = (estudiantes) => {
+            const total = estudiantes.length;
+            const pesoNormal = estudiantes.filter(e => e.clasificacion === 'Peso normal').length;
+            const sobrepeso = estudiantes.filter(e => e.clasificacion === 'Sobrepeso').length;
+            const bajo = estudiantes.filter(e => e.clasificacion === 'Bajo peso').length;
+            const obesidad = estudiantes.filter(e => e.clasificacion === 'Obesidad').length;
+
+            const promIMC = (estudiantes.reduce((sum, e) => sum + parseFloat(e.imc), 0) / total).toFixed(2);
+
+            const statsHTML = `
+                <div class="stat-card">
+                    <p>Registros Totales</p>
+                    <h3>${total}</h3>
+                </div>
+                <div class="stat-card">
+                    <p>Promedio IMC</p>
+                    <h3>${promIMC}</h3>
+                </div>
+                <div class="stat-card">
+                    <p>Peso Normal</p>
+                    <h3 style="color: #4CAF50;">${pesoNormal}</h3>
+                </div>
+                <div class="stat-card">
+                    <p>Sobrepeso</p>
+                    <h3 style="color: #FF6B6B;">${sobrepeso + bajo + obesidad}</h3>
+                </div>
+            `;
+
+            document.getElementById("stats").innerHTML = statsHTML;
+        };
+    </script>
+</body>
+</html>

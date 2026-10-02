@@ -1,0 +1,34 @@
+<IfModule mod_rewrite.c>
+    # Habilitar rewrite engine
+    RewriteEngine On
+    
+    # Permitir acceso a archivos y directorios reales
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Permitir métodos POST
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    
+    # Permitir acceso a carpeta database
+    <Directory "database">
+        <IfModule mod_authz_core.c>
+            Require all granted
+        </IfModule>
+        <IfModule mod_access_compat.c>
+            Order Allow,Deny
+            Allow from all
+        </IfModule>
+    </Directory>
+</IfModule>
+
+# Permitir métodos POST globalmente
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.php$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+# Charset UTF-8
+AddDefaultCharset utf-8
